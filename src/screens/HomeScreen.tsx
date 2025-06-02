@@ -9,19 +9,12 @@ import {
   Alert,
   Image,
 } from 'react-native';
-import { launchCamera, ImagePickerResponse } from 'react-native-image-picker';
+import { launchCamera, ImagePickerResponse, PhotoQuality } from 'react-native-image-picker';
 import functions from '@react-native-firebase/functions';
-
-// --- Melhoria 1: Mover a configuração da Cloud Function para um arquivo de serviço ---
-// Embora você tenha mencionado que deixou aqui para simplificar,
-// em projetos maiores, é boa prática separar.
-// Por agora, vamos manter aqui, mas é um ponto a considerar.
 
 interface BulaSummary {
   nomeOficial: string;
   resumo: {
-    // É bom garantir que as chaves sejam opcionais caso o Gemini não as retorne (com '?' )
-    // ou que haja um tratamento explícito para 'Não especificado na bula.'
     contraindicacoes?: string;
     como_usar?: string;
     posologia?: string;
@@ -31,26 +24,25 @@ interface BulaSummary {
   fonte: string;
 }
 
-const processImageAndGetBulaFromCloudFunction = async (imageData: string) => {
+const processImageAndGetBulaFromCloudFunction = async (imageData: string): Promise<BulaSummary> => {
   try {
     const callable = functions().httpsCallable('processImageAndGetBula');
     const result = await callable({ imageData });
-    return result.data;
+    return result.data as BulaSummary;
   } catch (error: any) {
     console.error('Erro ao chamar a Cloud Function:', error.code, error.message);
     if (error.details) {
       console.error('Detalhes do erro:', error.details);
     }
-    // Melhoria 2: Lançar um erro mais amigável ou mapear códigos de erro
     let userMessage = 'Ocorreu um erro desconhecido ao processar sua solicitação.';
     if (error.code === 'not-found') {
-      userMessage = error.message; // Mensagem específica do backend
+      userMessage = error.message;
     } else if (error.code === 'invalid-argument') {
       userMessage = error.message;
     } else if (error.code === 'internal') {
-        userMessage = error.message; // A Cloud Function já retorna mensagens de erro internas amigáveis
+        userMessage = error.message;
     }
-    throw new Error(userMessage); // Lança um erro com a mensagem para o usuário
+    throw new Error(userMessage);
   }
 };
 
@@ -71,14 +63,12 @@ const HomeScreen: React.FC = () => {
       includeBase64: true,
       maxHeight: 1200,
       maxWidth: 1200,
-      quality: 0.8,
+      quality: 0.8 as PhotoQuality,
     };
 
     launchCamera(options, async (response: ImagePickerResponse) => {
-      // Melhoria 3: Ocultar o spinner apenas se não houver um processamento posterior
-      // Se houver um asset, vamos manter o spinner ativo para o processamento da Cloud Function
       if (!response.assets || response.assets.length === 0) {
-        setLoading(false); // Oculta o spinner apenas se não tivermos uma imagem para processar
+        setLoading(false);
       }
 
       if (response.didCancel) {
@@ -91,18 +81,13 @@ const HomeScreen: React.FC = () => {
         const asset = response.assets[0];
         if (asset.uri && asset.base64) {
           setImageUri(asset.uri);
-          // setLoading(true); // Já está true do início da função, não precisa reativar aqui
           try {
             console.log('Enviando imagem para Cloud Function...');
-            // Melhoria 4: Validar tamanho do Base64 para evitar exceder limite de requisição
-            // Uma imagem de 1200x1200 com qualidade 0.8 geralmente se encaixa no limite,
-            // mas é bom ter em mente para imagens maiores.
             const result = await processImageAndGetBulaFromCloudFunction(asset.base64);
             setResumoBula(result);
             setError(null);
           } catch (err: any) {
             console.error('Erro ao processar imagem e buscar bula:', err);
-            // Melhoria 5: A mensagem de erro agora virá do 'throw new Error(userMessage)'
             setError(err.message || 'Ocorreu um erro ao processar a imagem e buscar a bula.');
             setResumoBula(null);
           } finally {
@@ -136,8 +121,6 @@ const HomeScreen: React.FC = () => {
           <Text style={styles.resumoTitle}>Bula Resumida de {resumoBula.nomeOficial}</Text>
           <Text style={styles.resumoFonte}>(Fonte: {resumoBula.fonte})</Text>
 
-          {/* Melhoria 6: Renderização Condicional de Itens da Bula */}
-          {/* Garante que o item só aparece se o conteúdo não for o placeholder "Não especificado..." */}
           {resumoBula.resumo.contraindicacoes && resumoBula.resumo.contraindicacoes !== "Não especificado na bula." && (
             <View style={styles.resumoItem}>
               <Text style={styles.itemTitle}>Contraindicações:</Text>
@@ -145,7 +128,8 @@ const HomeScreen: React.FC = () => {
             </View>
           )}
           {resumoBula.resumo.como_usar && resumoBula.resumo.como_usar !== "Não especificado na bula." && (
-            <View style={styles.resumoItem}>
+            // CORREÇÃO AQUI: Adicionado o fechamento da tag <View>
+            <View style={styles.resumoItem}> 
               <Text style={styles.itemTitle}>Como Usar / Modo de Uso:</Text>
               <Text style={styles.itemContent}>{resumoBula.resumo.como_usar}</Text>
             </View>
@@ -156,7 +140,7 @@ const HomeScreen: React.FC = () => {
               <Text style={styles.itemContent}>{resumoBula.resumo.posologia}</Text>
             </View>
           )}
-          {resumoBula.resumo.reacoes_adversas && resumoBula.resumo.reacoes_adversa !== "Não especificado na bula." && (
+          {resumoBula.resumo.reacoes_adversas && resumoBula.resumo.reacoes_adversas !== "Não especificado na bula." && (
             <View style={styles.resumoItem}>
               <Text style={styles.itemTitle}>Reações Adversas e Efeitos Colaterais:</Text>
               <Text style={styles.itemContent}>{resumoBula.resumo.reacoes_adversas}</Text>
