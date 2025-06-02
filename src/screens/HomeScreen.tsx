@@ -24,9 +24,13 @@ interface BulaSummary {
   fonte: string;
 }
 
+// ... (código anterior) ...
+
+// A função que será usada agora é a processImageAndGetBulaFromCloudFunction
 const processImageAndGetBulaFromCloudFunction = async (imageData: string): Promise<BulaSummary> => {
   try {
-    const callable = functions().httpsCallable('processImageAndGetBula');
+    // Certifique-se de que o nome da função callable corresponde ao export no seu functions/index.js
+    const callable = functions().httpsCallable('processImageAndGetBula'); // <--- Nome da função no backend
     const result = await callable({ imageData });
     return result.data as BulaSummary;
   } catch (error: any) {
