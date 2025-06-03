@@ -8,9 +8,12 @@ import {
   StyleSheet,
   Alert,
   Image,
+  Platform, // Importação do Platform
 } from 'react-native';
 import { launchCamera, ImagePickerResponse, PhotoQuality } from 'react-native-image-picker';
 import functions from '@react-native-firebase/functions';
+// Importação das permissões
+import { check, request, PERMISSIONS, RESULTS } from 'react-native-permissions';
 
 interface BulaSummary {
   nomeOficial: string;
@@ -61,6 +64,31 @@ const HomeScreen: React.FC = () => {
     setResumoBula(null);
     setError(null);
     setImageUri(null);
+
+    // --- CÓDIGO DE VERIFICAÇÃO E REQUISIÇÃO DE PERMISSÃO ---
+    let cameraPermissionStatus;
+    if (Platform.OS === 'android') {
+        cameraPermissionStatus = await check(PERMISSIONS.ANDROID.CAMERA);
+        if (cameraPermissionStatus !== RESULTS.GRANTED) {
+            cameraPermissionStatus = await request(PERMISSIONS.ANDROID.CAMERA);
+        }
+    } else { // iOS
+        cameraPermissionStatus = await check(PERMISSIONS.IOS.CAMERA);
+        if (cameraPermissionStatus !== RESULTS.GRANTED) {
+            cameraPermissionStatus = await request(PERMISSIONS.IOS.CAMERA);
+        }
+    }
+
+    if (cameraPermissionStatus !== RESULTS.GRANTED) {
+        setLoading(false);
+        setError('Permissão da câmera não concedida. Por favor, conceda a permissão nas configurações do aplicativo.');
+        Alert.alert(
+            'Permissão Necessária',
+            'Para usar a câmera, precisamos da sua permissão. Por favor, conceda nas configurações do aplicativo.'
+        );
+        return; // Interrompe o processo se a permissão não for concedida
+    }
+    // --- FIM DO CÓDIGO DE PERMISSÃO ---
 
     const options = {
       mediaType: 'photo' as 'photo',

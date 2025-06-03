@@ -1,5 +1,5 @@
 import React from 'react';
-import HomeScreen from './src/screens/HomeScreen';
+import HomeScreen from './screens/HomeScreen';
 import firebase from '@react-native-firebase/app'; // Importe o módulo principal do Firebase
 
 // Opcional: Se você estiver usando o emulador de funções para testes locais
