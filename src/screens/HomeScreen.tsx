@@ -8,12 +8,11 @@ import {
   StyleSheet,
   Alert,
   Image,
-  Platform, // Importação do Platform
+  Platform, // Importar Platform
 } from 'react-native';
-import { launchCamera, ImagePickerResponse, PhotoQuality } from 'react-native-image-picker';
+import { launchCamera, launchImageLibrary, ImagePickerResponse, PhotoQuality } from 'react-native-image-picker'; // <<<< Importar launchImageLibrary
 import functions from '@react-native-firebase/functions';
-// Importação das permissões
-import { check, request, PERMISSIONS, RESULTS } from 'react-native-permissions';
+import { check, request, PERMISSIONS, RESULTS } from 'react-native-permissions'; // <<<< Importar permissões
 
 interface BulaSummary {
   nomeOficial: string;
@@ -27,13 +26,9 @@ interface BulaSummary {
   fonte: string;
 }
 
-// ... (código anterior) ...
-
-// A função que será usada agora é a processImageAndGetBulaFromCloudFunction
 const processImageAndGetBulaFromCloudFunction = async (imageData: string): Promise<BulaSummary> => {
   try {
-    // Certifique-se de que o nome da função callable corresponde ao export no seu functions/index.js
-    const callable = functions().httpsCallable('processImageAndGetBula'); // <--- Nome da função no backend
+    const callable = functions().httpsCallable('processImageAndGetBula');
     const result = await callable({ imageData });
     return result.data as BulaSummary;
   } catch (error: any) {
@@ -59,13 +54,51 @@ const HomeScreen: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [imageUri, setImageUri] = useState<string | null>(null);
 
+  // --- Função Auxiliar para Processar a Resposta do ImagePicker ---
+  const handleImagePickerResponse = async (response: ImagePickerResponse) => {
+    if (!response.assets || response.assets.length === 0) {
+      setLoading(false); // Só desativa o spinner se não tivermos imagem para processar
+      if (response.didCancel) {
+        console.log('Usuário cancelou a seleção.');
+        setError('Seleção de imagem cancelada.');
+      } else if (response.errorMessage) {
+        console.error('ImagePicker Error: ', response.errorMessage);
+        setError('Erro ao selecionar imagem: ' + response.errorMessage);
+      } else {
+        setError('Nenhuma imagem selecionada.');
+      }
+      return;
+    }
+
+    const asset = response.assets[0];
+    if (asset.uri && asset.base64) {
+      setImageUri(asset.uri); // Exibe a imagem no app
+      // O spinner já está ativo, então não precisa reativar aqui
+      try {
+        console.log('Enviando imagem para Cloud Function...');
+        const result = await processImageAndGetBulaFromCloudFunction(asset.base64);
+        setResumoBula(result);
+        setError(null);
+      } catch (err: any) {
+        console.error('Erro ao processar imagem e buscar bula:', err);
+        setError(err.message || 'Ocorreu um erro ao processar a imagem e buscar a bula.');
+        setResumoBula(null);
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      setLoading(false);
+      setError('Não foi possível obter os dados da imagem selecionada.');
+    }
+  };
+
   const handleLaunchCamera = async () => {
     setLoading(true);
     setResumoBula(null);
     setError(null);
     setImageUri(null);
 
-    // --- CÓDIGO DE VERIFICAÇÃO E REQUISIÇÃO DE PERMISSÃO ---
+    // --- Lógica de Permissão da Câmera ---
     let cameraPermissionStatus;
     if (Platform.OS === 'android') {
         cameraPermissionStatus = await check(PERMISSIONS.ANDROID.CAMERA);
@@ -86,9 +119,9 @@ const HomeScreen: React.FC = () => {
             'Permissão Necessária',
             'Para usar a câmera, precisamos da sua permissão. Por favor, conceda nas configurações do aplicativo.'
         );
-        return; // Interrompe o processo se a permissão não for concedida
+        return;
     }
-    // --- FIM DO CÓDIGO DE PERMISSÃO ---
+    // --- Fim Lógica de Permissão da Câmera ---
 
     const options = {
       mediaType: 'photo' as 'photo',
@@ -98,45 +131,70 @@ const HomeScreen: React.FC = () => {
       quality: 0.8 as PhotoQuality,
     };
 
-    launchCamera(options, async (response: ImagePickerResponse) => {
-      if (!response.assets || response.assets.length === 0) {
-        setLoading(false);
-      }
-
-      if (response.didCancel) {
-        console.log('Usuário cancelou a câmera');
-        setError('Captura de imagem cancelada.');
-      } else if (response.errorMessage) {
-        console.error('ImagePicker Error: ', response.errorMessage);
-        setError('Erro ao acessar a câmera: ' + response.errorMessage);
-      } else if (response.assets && response.assets.length > 0) {
-        const asset = response.assets[0];
-        if (asset.uri && asset.base64) {
-          setImageUri(asset.uri);
-          try {
-            console.log('Enviando imagem para Cloud Function...');
-            const result = await processImageAndGetBulaFromCloudFunction(asset.base64);
-            setResumoBula(result);
-            setError(null);
-          } catch (err: any) {
-            console.error('Erro ao processar imagem e buscar bula:', err);
-            setError(err.message || 'Ocorreu um erro ao processar a imagem e buscar a bula.');
-            setResumoBula(null);
-          } finally {
-            setLoading(false);
-          }
-        } else {
-          setError('Não foi possível obter os dados da imagem.');
-        }
-      }
-    });
+    launchCamera(options, handleImagePickerResponse); // Usar a função auxiliar
   };
+
+  // --- Nova Função para Abrir a Galeria ---
+  const handleLaunchImageLibrary = async () => {
+    setLoading(true);
+    setResumoBula(null);
+    setError(null);
+    setImageUri(null);
+
+    // --- Lógica de Permissão da Galeria/Armazenamento ---
+    let photoLibraryPermissionStatus;
+    if (Platform.OS === 'android') {
+        // Para Android 13 (API 33) e superior, usamos READ_MEDIA_IMAGES
+        if (Platform.Version >= 33) {
+            photoLibraryPermissionStatus = await check(PERMISSIONS.ANDROID.READ_MEDIA_IMAGES);
+            if (photoLibraryPermissionStatus !== RESULTS.GRANTED) {
+                photoLibraryPermissionStatus = await request(PERMISSIONS.ANDROID.READ_MEDIA_IMAGES);
+            }
+        } else { // Para Android 12 (API 32) e anteriores, usamos READ_EXTERNAL_STORAGE
+            photoLibraryPermissionStatus = await check(PERMISSIONS.ANDROID.READ_EXTERNAL_STORAGE);
+            if (photoLibraryPermissionStatus !== RESULTS.GRANTED) {
+                photoLibraryPermissionStatus = await request(PERMISSIONS.ANDROID.READ_EXTERNAL_STORAGE);
+            }
+        }
+    } else { // iOS
+        photoLibraryPermissionStatus = await check(PERMISSIONS.IOS.PHOTO_LIBRARY);
+        if (photoLibraryPermissionStatus !== RESULTS.GRANTED) {
+            photoLibraryPermissionStatus = await request(PERMISSIONS.IOS.PHOTO_LIBRARY);
+        }
+    }
+
+    if (photoLibraryPermissionStatus !== RESULTS.GRANTED) {
+        setLoading(false);
+        setError('Permissão da galeria não concedida. Por favor, conceda a permissão nas configurações do aplicativo.');
+        Alert.alert(
+            'Permissão Necessária',
+            'Para selecionar imagens da galeria, precisamos da sua permissão. Por favor, conceda nas configurações do aplicativo.'
+        );
+        return;
+    }
+    // --- Fim Lógica de Permissão da Galeria ---
+
+    const options = {
+      mediaType: 'photo' as 'photo',
+      includeBase64: true,
+      maxHeight: 1200,
+      maxWidth: 1200,
+      quality: 0.8 as PhotoQuality,
+    };
+
+    launchImageLibrary(options, handleImagePickerResponse); // Usar a função auxiliar
+  };
+
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>FarmCam - Identificador de Bulas</Text>
 
       <Button title="Abrir Câmera e Identificar Bula" onPress={handleLaunchCamera} disabled={loading} />
+      {/* Novo botão para a galeria */}
+      <View style={styles.buttonSpacer} /> {/* Para dar um espaço entre os botões */}
+      <Button title="Carregar Imagem da Galeria" onPress={handleLaunchImageLibrary} disabled={loading} color="#4CAF50" />
+
 
       {loading && <ActivityIndicator size="large" color="#0000ff" style={styles.spinner} />}
       {error && <Text style={styles.errorText}>Erro: {error}</Text>}
@@ -160,8 +218,7 @@ const HomeScreen: React.FC = () => {
             </View>
           )}
           {resumoBula.resumo.como_usar && resumoBula.resumo.como_usar !== "Não especificado na bula." && (
-            // CORREÇÃO AQUI: Adicionado o fechamento da tag <View>
-            <View style={styles.resumoItem}> 
+            <View style={styles.resumoItem}>
               <Text style={styles.itemTitle}>Como Usar / Modo de Uso:</Text>
               <Text style={styles.itemContent}>{resumoBula.resumo.como_usar}</Text>
             </View>
@@ -270,6 +327,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#555',
     lineHeight: 23,
+  },
+  buttonSpacer: {
+    height: 10, // Espaço entre os botões
   },
 });
 
