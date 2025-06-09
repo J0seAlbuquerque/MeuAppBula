@@ -3,9 +3,9 @@ import HomeScreen from './screens/HomeScreen';
 import firebase from '@react-native-firebase/app'; // Importe o módulo principal do Firebase
 
 // Opcional: Se você estiver usando o emulador de funções para testes locais
-// if (__DEV__) { // Apenas em desenvolvimento
-//   firebase.functions().useFunctionsEmulator('http://localhost:5001');
-// }
+ if (__DEV__) { // Apenas em desenvolvimento
+   firebase.functions().useFunctionsEmulator('http://localhost:5001');
+ }
 
 const App: React.FC = () => {
   // O SDK do Firebase para React Native geralmente se inicializa automaticamente

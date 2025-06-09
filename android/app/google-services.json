@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "487183681764",
+    "project_id": "farmacam",
+    "storage_bucket": "farmacam.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:487183681764:android:a8921b7a5a6d3d597404f1",
+        "android_client_info": {
+          "package_name": "com.meuappbula"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDRoWjMy7UgkrvvUlQ3RumBaXt8fL2VPQ8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

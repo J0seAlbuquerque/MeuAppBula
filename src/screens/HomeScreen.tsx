@@ -182,7 +182,7 @@ const HomeScreen: React.FC = () => {
       quality: 0.8 as PhotoQuality,
     };
 
-    launchImageLibrary(options, handleImagePickerResponse); // Usar a função auxiliar
+    launchImageLibrary(options, handleImagePickerResponse);  // Usar a função auxiliar
   };
 
 

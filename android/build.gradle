@@ -1,9 +1,11 @@
+// Caminho do arquivo: android/build.gradle
+
 buildscript {
     ext {
-        buildToolsVersion = "35.0.0"
+        buildToolsVersion = "34.0.0"
         minSdkVersion = 24
-        compileSdkVersion = 35
-        targetSdkVersion = 35
+        compileSdkVersion = 34
+        targetSdkVersion = 34
         ndkVersion = "27.1.12297006"
         kotlinVersion = "2.0.21"
     }
@@ -12,10 +14,12 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath("com.android.tools.build:gradle")
+        // CORREÇÃO: Adicionamos a versão do plugin do Android. Usando uma versão recente e compatível.
+        classpath("com.android.tools.build:gradle:8.5.0") 
         classpath("com.facebook.react:react-native-gradle-plugin")
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin")
+        
+        // ADIÇÃO: Esta é a linha do plugin do Google Services que faltava.
+        classpath 'com.google.gms:google-services:4.4.2'
     }
 }
-
-apply plugin: "com.facebook.react.rootproject"

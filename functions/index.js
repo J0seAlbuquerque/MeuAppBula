@@ -148,9 +148,9 @@ exports.processImageAndGetBula = functions.https.onCall(async (data, context) =>
     if (querySnapshot.empty) {
       const nomeNormalizadoParaBusca = nomeMedicamentoFinal.toLowerCase();
       querySnapshot = await medicamentosRef
-        .where('nomes_alternativos', 'array-contains', nomeNormalizadoParaBusado)
-        .limit(1)
-        .get();
+      .where('nomes_alternativos', 'array-contains', nomeNormalizadoParaBusca) // << CORRIGIDO
+      .limit(1)
+      .get();
     }
 
     if (querySnapshot.empty) {
