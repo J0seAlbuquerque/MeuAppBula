@@ -19,7 +19,17 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
  * Cloud Function para processar uma imagem com OCR, extrair nome do medicamento e resumir a bula.
  * Recebe a imagem codificada em Base64 do frontend.
  */
-exports.processImageAndGetBula = functions.https.onCall(async (data, context) => {
+  // Substitua o bloco acima por este
+
+  exports.processImageAndGetBula = functions.https.onCall({
+    timeoutSeconds: 300, // Aumenta o tempo limite para 300 segundos (5 minutos)
+    memory: "1GB"      // Opcional: Aumenta a memória para 1GB
+  }, async (data, context) => {
+
+    // --- INICIALIZAÇÃO DOS CLIENTES...
+    // ... todo o resto do seu código da função continua aqui, sem nenhuma outra alteração.
+
+  });
   // --- INICIALIZAÇÃO DOS CLIENTES MOVIDA PARA DENTRO DA FUNÇÃO ---
   // Isso garante que se houver um problema de configuração, ele será capturado
   // dentro do try-catch da requisição, e não derrubará o contêiner na inicialização.
